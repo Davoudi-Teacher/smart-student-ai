@@ -1,0 +1,19 @@
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.env
+.DS_Store
+Thumbs.db
+
+# Test and temporary files
+check_*.py
+test_*.py
+face_detection_result.jpg
+test_face.jpg
+
+# Generated QR images
+images/qr_codes/*.png
+
+database/*.db
