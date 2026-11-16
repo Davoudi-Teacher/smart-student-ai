@@ -11,8 +11,14 @@ from PIL import Image
 from modules.academic_analysis import analyze_student
 from modules.qr_manager import read_qr_code, get_student_by_qr
 from modules.face_detection import detect_faces
-from modules.database_manager import get_connection
+from modules.database_manager import get_connection, create_tables
 
+from data.generate_data import (
+    generate_students,
+    generate_subjects,
+    generate_grades,
+    generate_attendance
+)
 
 # ==========================================================
 # PAGE CONFIG
@@ -26,6 +32,61 @@ st.set_page_config(
 
 BASE_DIR = __import__("pathlib").Path(__file__).resolve().parent
 MODEL_PATH = BASE_DIR / "models" / "student_status_model.joblib"
+def initialize_database():
+    create_tables()
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute("SELECT COUNT(*) FROM students")
+        students_count = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM subjects")
+        subjects_count = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM grades")
+        grades_count = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM attendance")
+        attendance_count = cursor.fetchone()[0]
+
+        counts = [
+            students_count,
+            subjects_count,
+            grades_count,
+            attendance_count
+        ]
+
+        # اگر همه جدول‌ها خالی باشند، داده آزمایشی تولید می‌شود
+        if all(count == 0 for count in counts):
+
+            generate_students(connection)
+            generate_subjects(connection)
+            generate_grades(connection)
+            generate_attendance(connection)
+
+            connection.commit()
+
+        # اگر بخشی از اطلاعات وجود داشته باشد، از تغییر آن جلوگیری می‌شود
+        elif not all(count > 0 for count in counts):
+
+            st.error(
+                "پایگاه داده ناقص است. برای جلوگیری از حذف اطلاعات، "
+                "تولید خودکار داده انجام نشد."
+            )
+            st.stop()
+
+    except Exception:
+        connection.rollback()
+        raise
+
+    finally:
+        connection.close()
+
+
+initialize_database()
 
 STATUS_COLORS = {
     "عالی": "#10B981",
