@@ -1,15 +1,20 @@
 
 import cv2
 import numpy as np
+from pathlib import Path
 
 
-# Load OpenCV Haar Cascade face detector
+# Project directory
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load Haar Cascade model from project folder
 CASCADE_PATH = (
-    cv2.data.haarcascades
-    + "haarcascade_frontalface_default.xml"
+    BASE_DIR
+    / "models"
+    / "haarcascade_frontalface_default.xml"
 )
 
-face_cascade = cv2.CascadeClassifier(CASCADE_PATH)
+face_cascade = cv2.CascadeClassifier(str(CASCADE_PATH))
 
 
 def check_image_quality(image):
@@ -35,7 +40,6 @@ def check_image_quality(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     brightness = float(np.mean(gray))
-
     sharpness = float(
         cv2.Laplacian(gray, cv2.CV_64F).var()
     )
@@ -44,7 +48,6 @@ def check_image_quality(image):
 
     if brightness < 40:
         quality_messages.append("تصویر تاریک است.")
-
     elif brightness > 220:
         quality_messages.append("تصویر بیش از حد روشن است.")
 
@@ -64,17 +67,16 @@ def check_image_quality(image):
 def detect_faces(image):
     """
     Detect faces and draw bounding boxes.
-
     Input image must be in BGR format.
     This function detects faces, not identities.
     """
 
-    if image is None:
+    if image is None or image.size == 0:
         raise ValueError("تصویر ورودی معتبر نیست.")
 
     if face_cascade.empty():
         raise RuntimeError(
-            "OpenCV face detection model could not be loaded."
+            f"OpenCV face detection model could not be loaded: {CASCADE_PATH}"
         )
 
     gray = cv2.cvtColor(
