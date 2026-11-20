@@ -82,6 +82,129 @@ def get_subject_averages(student_id):
         connection.close()
 
 
+def get_term_averages(student_id):
+    """Calculate the average score for each academic term."""
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT
+                term,
+                ROUND(AVG(score), 2) AS average_score
+            FROM grades
+            WHERE student_id = ?
+            GROUP BY term
+        """, (student_id,))
+
+        results = [dict(row) for row in cursor.fetchall()]
+
+        term_order = [
+            "مستمر اول",
+            "پایانی اول",
+            "مستمر دوم",
+            "پایانی دوم"
+        ]
+
+        results.sort(
+            key=lambda item: (
+                term_order.index(item["term"])
+                if item["term"] in term_order
+                else len(term_order)
+            )
+        )
+
+        return results
+
+    finally:
+        connection.close()
+
+
+def analyze_performance(subject_averages, term_averages):
+    """Generate academic insights and educational recommendations."""
+
+    strong_subjects = []
+    weak_subjects = []
+    recommendations = []
+
+    for item in subject_averages:
+
+        subject = item["subject_name"]
+        average = item["average_score"]
+
+        if average >= 17:
+            strong_subjects.append(subject)
+
+        elif average < 12:
+            weak_subjects.append(subject)
+
+    if strong_subjects:
+        recommendations.append(
+            "عملکرد دانش‌آموز در درس‌های "
+            + "، ".join(strong_subjects)
+            + " مطلوب است. حفظ این روند توصیه می‌شود."
+        )
+
+    if weak_subjects:
+        recommendations.append(
+            "برای بهبود عملکرد در درس‌های "
+            + "، ".join(weak_subjects)
+            + " برنامه تمرینی و آموزشی بیشتری در نظر گرفته شود."
+        )
+
+    if not subject_averages:
+        recommendations.append(
+            "برای ارائه تحلیل دقیق‌تر، ابتدا نمرات دانش‌آموز ثبت شوند."
+        )
+
+    trend = "اطلاعات کافی برای بررسی روند وجود ندارد."
+    trend_change = None
+
+    if len(term_averages) >= 2:
+
+        first_average = term_averages[0]["average_score"]
+        last_average = term_averages[-1]["average_score"]
+
+        trend_change = round(last_average - first_average, 2)
+
+        if trend_change >= 0.5:
+            trend = "روند پیشرفت تحصیلی"
+
+        elif trend_change <= -0.5:
+            trend = "روند افت تحصیلی"
+
+        else:
+            trend = "وضعیت تحصیلی تقریباً ثابت"
+
+    if trend == "روند پیشرفت تحصیلی":
+        recommendations.append(
+            "روند نمرات نشان‌دهنده پیشرفت است. "
+            "ادامه روش‌های آموزشی مؤثر توصیه می‌شود."
+        )
+
+    elif trend == "روند افت تحصیلی":
+        recommendations.append(
+            "کاهش میانگین نمرات مشاهده شده است. "
+            "بررسی علت افت و گفت‌وگو با دانش‌آموز توصیه می‌شود."
+        )
+
+    elif trend == "وضعیت تحصیلی تقریباً ثابت":
+        recommendations.append(
+            "برای بهبود عملکرد، استفاده از تمرین‌های تکمیلی توصیه می‌شود."
+        )
+
+    return {
+        "strong_subjects": strong_subjects,
+        "weak_subjects": weak_subjects,
+        "term_averages": term_averages,
+        "trend": trend,
+        "trend_change": trend_change,
+        "recommendations": recommendations
+    }
+
+
 def get_attendance_summary(student_id):
     """Calculate attendance statistics."""
 
@@ -120,17 +243,19 @@ def get_attendance_summary(student_id):
 
 
 def analyze_student(student_id):
-    """Create a complete academic report."""
+    """Create a complete academic report with performance analysis."""
 
     student = get_student_profile(student_id)
 
     if student is None:
         return None
 
+    # دریافت اطلاعات تحصیلی
     grades = get_student_grades(student_id)
     subject_averages = get_subject_averages(student_id)
     attendance = get_attendance_summary(student_id)
 
+    # محاسبه میانگین کل
     if grades:
         overall_average = round(
             sum(item["score"] for item in grades) / len(grades), 2
@@ -138,6 +263,7 @@ def analyze_student(student_id):
     else:
         overall_average = 0
 
+    # تعیین وضعیت تحصیلی
     if overall_average >= 17:
         academic_status = "عالی"
     elif overall_average >= 14:
@@ -147,6 +273,7 @@ def analyze_student(student_id):
     else:
         academic_status = "نیازمند تلاش بیشتر"
 
+    # تعیین وضعیت حضور و غیاب
     if attendance["attendance_percentage"] >= 90:
         attendance_status = "مطلوب"
     elif attendance["attendance_percentage"] >= 75:
@@ -154,6 +281,15 @@ def analyze_student(student_id):
     else:
         attendance_status = "نیازمند پیگیری"
 
+    # تحلیل روند نمرات
+    term_averages = get_term_averages(student_id)
+
+    performance_analysis = analyze_performance(
+        subject_averages,
+        term_averages
+    )
+
+    # گزارش نهایی
     return {
         "student": student,
         "grades": grades,
@@ -161,28 +297,11 @@ def analyze_student(student_id):
         "attendance": attendance,
         "overall_average": overall_average,
         "academic_status": academic_status,
-        "attendance_status": attendance_status
+        "attendance_status": attendance_status,
+
+        # اطلاعات تحلیل هوشمند
+        "term_averages": term_averages,
+        "performance_analysis": performance_analysis
     }
 
-
-if __name__ == "__main__":
-    report = analyze_student("10001")
-
-    if report is None:
-        print("Student not found.")
-
-    else:
-        print("Academic analysis completed.")
-        print("Student ID:", report["student"]["student_id"])
-        print("Overall Average:", report["overall_average"])
-        print("Academic Status:", report["academic_status"])
-        print("Attendance:", report["attendance"])
-        print("Attendance Status:", report["attendance_status"])
-
-        print("\nSubject Averages:")
-
-        for item in report["subject_averages"]:
-            print(
-                item["subject_name"],
-                ":", item["average_score"]
-            )
+    

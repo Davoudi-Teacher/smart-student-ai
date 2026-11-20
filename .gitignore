@@ -17,3 +17,21 @@ test_face.jpg
 images/qr_codes/*.png
 
 database/*.db
+
+# Local and sensitive project data
+images/
+database/
+*.db
+*.sqlite
+*.sqlite3
+.env
+.streamlit/secrets.toml
+
+# Python environment
+venv/
+.venv/
+__pycache__/
+
+# Release packaging
+Student_AI_System_GitHub_Release/
+Student_AI_System_GitHub_Release.zip

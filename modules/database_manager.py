@@ -1,6 +1,7 @@
 
 import sqlite3
 from pathlib import Path
+import numpy as np
 
 
 # Project paths
@@ -89,7 +90,26 @@ def create_tables():
             UNIQUE(student_id, attendance_date)
         )
     """)
+        # Face templates table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS face_templates (
+            template_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id TEXT NOT NULL,
+            feature BLOB NOT NULL,
+            photo_path TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
+            FOREIGN KEY (student_id)
+                REFERENCES students(student_id)
+                ON DELETE CASCADE
+        )
+    """)
+
+    # Index for faster student face-template lookup
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_face_templates_student
+        ON face_templates(student_id)
+    """)
     connection.commit()
     connection.close()
 
@@ -124,6 +144,44 @@ def get_database_info():
 
     connection.close()
 
+def get_all_face_templates():
+    """
+    Retrieve all stored face templates grouped by student ID.
+    """
+
+    connection = get_connection()
+
+    try:
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT student_id, feature
+            FROM face_templates
+            ORDER BY student_id
+        """)
+
+        rows = cursor.fetchall()
+
+        student_features = {}
+
+        for row in rows:
+
+            student_id = row["student_id"]
+
+            feature = np.frombuffer(
+                row["feature"],
+                dtype=np.float32
+            ).reshape(1, 128)
+
+            if student_id not in student_features:
+                student_features[student_id] = []
+
+            student_features[student_id].append(feature)
+
+        return student_features
+
+    finally:
+        connection.close()
 
 if __name__ == "__main__":
 

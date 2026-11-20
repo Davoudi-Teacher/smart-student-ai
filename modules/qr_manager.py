@@ -129,7 +129,8 @@ def get_student_by_qr(token):
                 last_name,
                 grade,
                 major,
-                class_name
+                class_name,
+                photo_path
             FROM students
             WHERE qr_token = ?
         """, (token,))
